@@ -1,12 +1,13 @@
 import { Router } from "express";
 import { pool } from "../db.js";
-import { verifyPassword } from "../lib/password.js";
+import { hashPassword, verifyPassword } from "../lib/password.js";
 import { COOKIE_NAME, SESSION_MS, cookieOptions, hashToken, makeToken, readCookie } from "../lib/session.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 
 export const authRouter = Router();
 
-// Use the same response for an unknown email or an incorrect password.
+const unknownUserPasswordHash = await hashPassword("");
+
 authRouter.post("/login", async (req, res, next) => {
   try {
     const { email, password } = req.body ?? {};
@@ -20,7 +21,9 @@ authRouter.post("/login", async (req, res, next) => {
       [email.trim().toLowerCase()],
     );
     const staff = result.rows[0];
-    if (!staff || !(await verifyPassword(password, staff.password_hash))) {
+    // Run scrypt for unknown addresses too.
+    const passwordMatches = await verifyPassword(password, staff?.password_hash ?? unknownUserPasswordHash);
+    if (!staff || !passwordMatches) {
       return res.status(401).json({ error: "Incorrect email or password." });
     }
 

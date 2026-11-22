@@ -45,6 +45,7 @@ Do not deploy with the demo password. The seeding script refuses to run when `NO
 - Sign in with either demo account and verify you see the staff workspace.
 - Refresh: the session should persist. Sign out: the session should end.
 - Run `npm test` for the password, token, and cookie unit tests.
+- Set `TEST_DATABASE_URL` to a local PostgreSQL test database and run `npm run test:integration`. The database role needs permission to create schemas. Each run creates and cleans up its own schema.
 
 ## Roadmap
 

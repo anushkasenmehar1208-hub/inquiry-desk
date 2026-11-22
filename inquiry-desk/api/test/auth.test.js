@@ -10,7 +10,7 @@ test("password verification only accepts the correct password", async () => {
   assert.equal(await verifyPassword("Welcome123!", "not-a-hash"), false);
 });
 
-test("session tokens are random and stored only as hashes", () => {
+test("generated session tokens differ from each other and from their hashes", () => {
   const tokenA = makeToken();
   const tokenB = makeToken();
   assert.notEqual(tokenA, tokenB);
