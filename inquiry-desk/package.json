@@ -1,0 +1,12 @@
+{
+  "name": "inquiry-desk",
+  "private": true,
+  "workspaces": ["api", "web"],
+  "scripts": {
+    "dev:api": "npm run dev -w api",
+    "dev:web": "npm run dev -w web",
+    "db:migrate": "npm run migrate -w api",
+    "db:seed": "npm run seed -w api",
+    "test": "npm run test -w api"
+  }
+}
