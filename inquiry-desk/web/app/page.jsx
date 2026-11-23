@@ -82,6 +82,7 @@ export default function Home() {
     setWorking(true);
     try {
       await api("/api/auth/logout", { method: "POST" });
+      window.history.replaceState(null, "", "/");
       setInquiryDraft(null);
       setUser(null);
       setEmail("");
