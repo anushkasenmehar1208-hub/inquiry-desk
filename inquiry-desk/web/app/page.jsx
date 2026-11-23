@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -13,7 +13,7 @@ async function api(path, options = {}) {
       headers: { "Content-Type": "application/json", ...options.headers },
     });
   } catch {
-    throw new Error("Unable to connect to the server. Is the API running?");
+    throw new Error("Couldn’t reach Inquiry Desk. Check your connection and try again.");
   }
   const data = response.status === 204 ? {} : await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -26,25 +26,48 @@ async function api(path, options = {}) {
 
 export default function Home() {
   const [user, setUser] = useState(null);
-  const [checking, setChecking] = useState(true);
+  const [sessionStatus, setSessionStatus] = useState("checking");
+  const [sessionAttempt, setSessionAttempt] = useState(0);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const requestPending = useRef(false);
+  const emailField = useRef(null);
+  const passwordField = useRef(null);
+  const workspaceHeading = useRef(null);
+  const wasSignedIn = useRef(false);
 
   useEffect(() => {
-    let active = true;
-    api("/api/auth/me")
-      .then(({ user }) => { if (active) setUser(user); })
-      .catch((error) => {
-        if (active && error.status !== 401) setError(error.message);
+    const controller = new AbortController();
+    api("/api/auth/me", { signal: controller.signal })
+      .then(({ user }) => {
+        if (controller.signal.aborted) return;
+        setUser(user);
+        setSessionStatus("ready");
       })
-      .finally(() => { if (active) setChecking(false); });
-    return () => { active = false; };
-  }, []);
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        setSessionStatus(error.status === 401 ? "ready" : "unavailable");
+      });
+    return () => controller.abort();
+  }, [sessionAttempt]);
+
+  useEffect(() => {
+    if (user) workspaceHeading.current?.focus();
+    else if (wasSignedIn.current) emailField.current?.focus();
+    wasSignedIn.current = Boolean(user);
+  }, [user]);
+
+  function retrySession() {
+    setSessionStatus("checking");
+    setSessionAttempt((attempt) => attempt + 1);
+  }
 
   async function signIn(event) {
     event.preventDefault();
+    if (requestPending.current) return;
+    requestPending.current = true;
     setError("");
     setWorking(true);
     try {
@@ -56,12 +79,17 @@ export default function Home() {
       setPassword("");
     } catch (error) {
       setError(error.message);
+      if (error.status === 401) setPassword("");
+      passwordField.current?.focus();
     } finally {
+      requestPending.current = false;
       setWorking(false);
     }
   }
 
   async function signOut() {
+    if (requestPending.current) return;
+    requestPending.current = true;
     setError("");
     setWorking(true);
     try {
@@ -69,66 +97,68 @@ export default function Home() {
       setUser(null);
       setEmail("");
     } catch (error) {
-      setError(error.message);
+      setError(`Couldn’t sign out. ${error.message}`);
     } finally {
+      requestPending.current = false;
       setWorking(false);
     }
   }
 
   return (
-    <div className="site">
+    <>
       <header className="site-header">
-        <div className="brand"><span className="brand-mark" aria-hidden="true">i.</span> Inquiry Desk</div>
-        <div className="header-caption">Staff workspace</div>
+        <span className="brand">Inquiry Desk</span>
       </header>
 
-      {checking ? (
-        <main className="checking"><p>Checking your session…</p></main>
-      ) : user ? (
-        <main className="workspace">
-          <div className="workspace-topline">
-            <span className="overline">WORKSPACE</span>
-            <button className="text-button" onClick={signOut} disabled={working}>Sign out</button>
-          </div>
-          <h1>Welcome back, {user.name.split(" ")[0]}.</h1>
-          <p className="lede">You are signed in as <strong>{user.email}</strong>.</p>
-          <div className="workspace-panel">
-            <span className="panel-index">01 / FOUNDATION</span>
-            <h2>Your workspace is connected.</h2>
-            <p>Authentication is working. Inquiry creation, search, and status updates are the next part of the build.</p>
-          </div>
-          {error && <p className="error" role="alert">{error}</p>}
-        </main>
-      ) : (
-        <main className="login-layout">
-          <section className="intro" aria-labelledby="intro-heading">
-            <span className="overline">CUSTOMER INQUIRIES, KEPT IN ORDER</span>
-            <h1 id="intro-heading">Know what came in.<br />Know what comes next.</h1>
-            <p>One practical workspace for customer requests, from the first message to a clear resolution.</p>
-            <div className="intro-rule" aria-hidden="true" />
-            <p className="small-note">For the people handling the work, not another layer of work.</p>
-          </section>
-
-          <section className="sign-in-card" aria-labelledby="sign-in-heading">
-            <span className="overline">STAFF SIGN IN</span>
-            <h2 id="sign-in-heading">Welcome back.</h2>
-            <p className="form-subtitle">Use your staff account to continue.</p>
-            <form onSubmit={signIn}>
-              <label htmlFor="email">Email address</label>
-              <input id="email" type="email" autoComplete="username" required value={email}
-                onChange={(event) => setEmail(event.target.value)} placeholder="you@company.com" />
-              <label htmlFor="password">Password</label>
-              <input id="password" type="password" autoComplete="current-password" required value={password}
-                onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" />
-              {error && <p className="error" role="alert">{error}</p>}
+      <main className="content">
+        {sessionStatus === "checking" ? (
+          <>
+            <h1>Staff sign-in</h1>
+            <p className="account-detail" role="status">Checking your session…</p>
+          </>
+        ) : sessionStatus === "unavailable" ? (
+          <>
+            <h1>Staff sign-in</h1>
+            <p className="error" role="alert">Couldn’t check your session. Try again.</p>
+            <button className="primary-button" type="button" onClick={retrySession}>Try again</button>
+          </>
+        ) : user ? (
+          <>
+            <h1 ref={workspaceHeading} tabIndex={-1}>Staff workspace</h1>
+            <p className="account-detail">Signed in as <strong>{user.name}</strong> ({user.email}).</p>
+            {error && <p className="error" role="alert">{error}</p>}
+            <button className="secondary-button" type="button" onClick={signOut} disabled={working}>
+              {working ? "Signing out…" : "Sign out"}
+            </button>
+          </>
+        ) : (
+          <>
+            <h1>Staff sign-in</h1>
+            <form onSubmit={signIn} aria-busy={working}>
+              <div className="field">
+                <label htmlFor="email">Email address</label>
+                <input ref={emailField} id="email" name="email" type="email" autoComplete="username"
+                  autoCapitalize="none" spellCheck={false} maxLength={254} required readOnly={working}
+                  value={email} onChange={(event) => setEmail(event.target.value)} />
+              </div>
+              <div className="field">
+                <label htmlFor="password">Password</label>
+                <input ref={passwordField} id="password" name="password" type="password"
+                  autoComplete="current-password" maxLength={1024} required readOnly={working}
+                  value={password} onChange={(event) => setPassword(event.target.value)}
+                  aria-describedby={error ? "sign-in-error" : undefined} />
+              </div>
+              {error && <p id="sign-in-error" className="error" role="alert">{error}</p>}
               <button className="primary-button" type="submit" disabled={working}>
-                {working ? "Signing in…" : "Sign in"}<span aria-hidden="true">→</span>
+                {working ? "Signing in…" : "Sign in"}
               </button>
             </form>
-          </section>
-        </main>
-      )}
-      <footer className="site-footer"><span>Inquiry Desk</span><span>Made for clarity.</span></footer>
-    </div>
+          </>
+        )}
+        <p className="visually-hidden" role="status">
+          {working ? (user ? "Signing out…" : "Signing in…") : ""}
+        </p>
+      </main>
+    </>
   );
 }
