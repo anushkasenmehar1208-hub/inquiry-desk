@@ -13,8 +13,12 @@ export function InquiryDetail({ id, onClose, onUpdated, onSessionExpired }) {
   const [result, setResult] = useState({ state: "loading" });
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [conflict, setConflict] = useState(false);
   const pending = useRef(false);
+  const heading = useRef(null);
+
+  useEffect(() => { heading.current?.focus(); }, [id]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -32,6 +36,7 @@ export function InquiryDetail({ id, onClose, onUpdated, onSessionExpired }) {
   }, [id, revision, onSessionExpired]);
 
   function refresh() {
+    setNotice("");
     setError("");
     setConflict(false);
     setRevision((count) => count + 1);
@@ -45,12 +50,14 @@ export function InquiryDetail({ id, onClose, onUpdated, onSessionExpired }) {
     pending.current = true;
     setWorking(true);
     setError("");
+    setNotice("");
     try {
       const response = await api(`/api/inquiries/${encodeURIComponent(id)}/status`, {
         method: "PATCH",
         body: JSON.stringify({ status, version: inquiry.version }),
       });
       setResult({ state: "ready", inquiry: response.inquiry });
+      setNotice(`Status updated to ${response.inquiry.status}.`);
       onUpdated();
     } catch (failure) {
       if (failure.status === 401) onSessionExpired();
@@ -71,7 +78,7 @@ export function InquiryDetail({ id, onClose, onUpdated, onSessionExpired }) {
   return (
     <section className="inquiry-detail" aria-labelledby="inquiry-detail-heading">
       <div className="detail-heading">
-        <h2 id="inquiry-detail-heading">Inquiry details</h2>
+        <h2 id="inquiry-detail-heading" ref={heading} tabIndex={-1}>Inquiry details</h2>
         <button className="secondary-button" type="button" onClick={onClose}>Close details</button>
       </div>
 
@@ -102,6 +109,7 @@ export function InquiryDetail({ id, onClose, onUpdated, onSessionExpired }) {
           </dl>
 
           {error && <p className="error" role="alert">{error}</p>}
+          {notice && <p className="save-status" role="status">{notice}</p>}
           <div className="detail-actions">
             {!conflict && nextStatus[result.inquiry.status] && (
               <button className="primary-button" type="button" onClick={changeStatus} disabled={working}>
