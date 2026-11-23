@@ -3,13 +3,14 @@ import express from "express";
 import cors from "cors";
 import { pool } from "./db.js";
 import { authRouter } from "./routes/auth.js";
+import { inquiriesRouter } from "./routes/inquiries.js";
 
 const webOrigin = process.env.WEB_ORIGIN ?? "http://localhost:3000";
 
 export const app = express();
 app.disable("x-powered-by");
 app.use(cors({ origin: webOrigin, credentials: true }));
-app.use("/api/auth", (req, res, next) => {
+app.use(["/api/auth", "/api/inquiries"], (req, res, next) => {
   res.set("Cache-Control", "no-store");
   const origin = req.get("Origin");
   if (req.method === "POST" && origin !== undefined && origin !== webOrigin) {
@@ -29,11 +30,15 @@ app.get("/api/health", async (_req, res, next) => {
 });
 
 app.use("/api/auth", authRouter);
+app.use("/api/inquiries", inquiriesRouter);
 app.use("/api", (_req, res) => res.status(404).json({ error: "Endpoint not found." }));
 
 app.use((error, _req, res, _next) => {
   if (error?.type === "entity.parse.failed") {
     return res.status(400).json({ error: "Invalid JSON." });
+  }
+  if (error?.type === "entity.too.large") {
+    return res.status(400).json({ error: "Request body is too large." });
   }
   console.error(error);
   res.status(500).json({ error: "Something went wrong. Please try again." });

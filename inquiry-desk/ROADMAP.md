@@ -16,11 +16,11 @@ The assessment is intentionally narrow: complete one flow well. Do not add chart
 **Acceptance:** A signed-out request gets a 401. Alex and Sam can sign in, refresh, and sign out. The previous session gets a 401 after logout.
 
 ## Stage 2 — Capture and overview (Nov 23)
-- [ ] POST `/api/inquiries` validates all four required fields
-- [ ] GET `/api/inquiries` lists only authorized inquiries
+- [x] POST `/api/inquiries` validates all four required fields
+- [x] GET `/api/inquiries` lists, searches, and filters the signed-in employee's inquiries
 - [ ] Create inquiry form with error, success, and loading feedback
 - [ ] List statuses and search or filter inquiries
-- [ ] Decide and document simple duplicate-submission policy
+- [x] Decide and document simple duplicate-submission policy
 
 **Acceptance:** A staff member creates an inquiry, reloads, and finds it in PostgreSQL.
 
