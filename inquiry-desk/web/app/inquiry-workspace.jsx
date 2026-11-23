@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
+import { InquiryDetail } from "./inquiry-detail";
 
 const fields = [
   { name: "customerName", label: "Customer name", maxLength: 120 },
@@ -111,7 +112,7 @@ function InquiryForm({ draft = {}, onDraftChange, onSaved, onSessionExpired }) {
   );
 }
 
-function InquiryOverview({ filters, onFiltersChange, revision, onRetry, onSessionExpired }) {
+function InquiryOverview({ filters, onFiltersChange, revision, onRetry, onSessionExpired, onOpen }) {
   const [result, setResult] = useState({ state: "loading" });
   const q = filters.q.trim();
   const { status } = filters;
@@ -177,6 +178,13 @@ function InquiryOverview({ filters, onFiltersChange, revision, onRetry, onSessio
               <div className="inquiry-summary">
                 <strong>{inquiry.subject}</strong>
                 <span>{inquiry.customerName}</span>
+                <a className="inquiry-link" href={`/?inquiry=${encodeURIComponent(inquiry.id)}`}
+                  aria-label={`Open ${inquiry.subject}`}
+                  onClick={(event) => {
+                    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                    event.preventDefault();
+                    onOpen(inquiry.id);
+                  }}>Open inquiry</a>
               </div>
               <div className="inquiry-meta">
                 <span className="inquiry-status">{inquiry.status}</span>
@@ -195,6 +203,28 @@ export function InquiryWorkspace({
 }) {
   const [filters, setFilters] = useState(allInquiries);
   const [revision, setRevision] = useState(0);
+  const [selectedId, setSelectedId] = useState(null);
+
+  useEffect(() => {
+    const syncSelection = () => setSelectedId(new URLSearchParams(window.location.search).get("inquiry"));
+    syncSelection();
+    window.addEventListener("popstate", syncSelection);
+    return () => window.removeEventListener("popstate", syncSelection);
+  }, []);
+
+  function openInquiry(id) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("inquiry", id);
+    window.history.pushState(null, "", url);
+    setSelectedId(id);
+  }
+
+  function closeInquiry() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("inquiry");
+    window.history.pushState(null, "", url);
+    setSelectedId(null);
+  }
 
   function reloadInquiries() {
     setRevision((current) => current + 1);
@@ -220,8 +250,14 @@ export function InquiryWorkspace({
       <div className="workspace-layout">
         <InquiryForm draft={draft} onDraftChange={onDraftChange}
           onSaved={inquirySaved} onSessionExpired={onSessionExpired} />
-        <InquiryOverview filters={filters} onFiltersChange={setFilters} revision={revision}
-          onRetry={reloadInquiries} onSessionExpired={onSessionExpired} />
+        <div className="inquiry-column">
+          <InquiryOverview filters={filters} onFiltersChange={setFilters} revision={revision}
+            onRetry={reloadInquiries} onSessionExpired={onSessionExpired} onOpen={openInquiry} />
+          {selectedId && (
+            <InquiryDetail key={selectedId} id={selectedId} onClose={closeInquiry}
+              onUpdated={reloadInquiries} onSessionExpired={onSessionExpired} />
+          )}
+        </div>
       </div>
     </>
   );
