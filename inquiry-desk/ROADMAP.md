@@ -26,13 +26,13 @@ The assessment is intentionally narrow: complete one flow well. Do not add chart
 **Acceptance:** A staff member creates an inquiry, reloads, and finds it in PostgreSQL.
 
 ## Stage 3 — Lifecycle and trust (Nov 24)
-- [ ] GET `/api/inquiries/:id` enforces ownership
-- [ ] PATCH `/api/inquiries/:id/status` validates allowed transitions
-- [ ] Distinguish 400 / 401 / 404 / 409 appropriately
-- [ ] Handle stale tabs with a version check and a refresh prompt
-- [ ] Demonstrate access denial using a second seeded user
+- [x] GET `/api/inquiries/:id` enforces ownership
+- [x] PATCH `/api/inquiries/:id/status` validates allowed transitions
+- [x] Distinguish 400 / 401 / 404 / 409 appropriately
+- [x] Handle stale tabs with a version check and a refresh prompt
+- [x] Add tests for access denial using a second seeded user
 
-**Acceptance:** Users cannot fetch other users' inquiries through direct links or the API; status transitions behave predictably.
+**Acceptance:** The backend denies direct links and updates for other users; status updates follow documented transitions and reject stale versions. Real browser verification remains required before final acceptance.
 
 ## Stage 4 — Test, document, and deliver (Nov 25)
 - [ ] Meaningful backend tests for ownership/validation/status
