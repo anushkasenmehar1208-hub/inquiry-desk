@@ -1,6 +1,6 @@
 # Engineering decisions (working draft)
 
-**Project:** Inquiry Desk. **Status:** Stage 2, inquiry creation and listing API.
+**Project:** Inquiry Desk. **Status:** Stage 2 complete.
 
 ## Scope
 The task is to manage inquiries, not build a CRM. Keep capture, retrieval, and status changes central. No dashboards, analytics, notifications, or customer messaging.
@@ -18,6 +18,8 @@ PostgreSQL holds staff, sessions, and inquiries. Each inquiry starts as New. A `
 
 ## Decision 4: Separate submissions and literal search
 Each valid POST creates a separate inquiry, even when its content matches an existing one. A customer may contact staff twice about the same issue.
+
+Failed saves keep the draft in the current tab. After session expiry, the same staff account can sign back in and retry. Reloading or signing out clears the draft.
 
 The optional `q` filter matches a case-insensitive substring in customer name, customer contact, subject, or description. Punctuation is literal, and a blank `q` leaves text search off. The optional `status` filter matches one of the three stored statuses exactly.
 

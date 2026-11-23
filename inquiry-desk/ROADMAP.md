@@ -18,9 +18,10 @@ The assessment is intentionally narrow: complete one flow well. Do not add chart
 ## Stage 2 — Capture and overview (Nov 23)
 - [x] POST `/api/inquiries` validates all four required fields
 - [x] GET `/api/inquiries` lists, searches, and filters the signed-in employee's inquiries
-- [ ] Create inquiry form with error, success, and loading feedback
-- [ ] List statuses and search or filter inquiries
+- [x] Create inquiry form with error, success, and loading feedback
+- [x] List inquiry statuses and combine text search with a status filter
 - [x] Decide and document simple duplicate-submission policy
+- [x] Verify browser creation, reload, filtering, and owner isolation against PostgreSQL
 
 **Acceptance:** A staff member creates an inquiry, reloads, and finds it in PostgreSQL.
 

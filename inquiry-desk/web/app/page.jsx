@@ -1,28 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-
-async function api(path, options = {}) {
-  let response;
-  try {
-    response = await fetch(`${API_URL}${path}`, {
-      ...options,
-      credentials: "include",
-      headers: { "Content-Type": "application/json", ...options.headers },
-    });
-  } catch {
-    throw new Error("Couldn’t reach Inquiry Desk. Check your connection and try again.");
-  }
-  const data = response.status === 204 ? {} : await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const error = new Error(data.error || "The request could not be completed.");
-    error.status = response.status;
-    throw error;
-  }
-  return data;
-}
+import { useCallback, useEffect, useRef, useState } from "react";
+import { api } from "./api";
+import { InquiryWorkspace } from "./inquiry-workspace";
 
 export default function Home() {
   const [user, setUser] = useState(null);
@@ -32,6 +12,7 @@ export default function Home() {
   const [error, setError] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [inquiryDraft, setInquiryDraft] = useState(null);
   const requestPending = useRef(false);
   const emailField = useRef(null);
   const passwordField = useRef(null);
@@ -64,6 +45,12 @@ export default function Home() {
     setSessionAttempt((attempt) => attempt + 1);
   }
 
+  const sessionExpired = useCallback(() => {
+    setUser(null);
+    setPassword("");
+    setError("Your session expired. Sign in again to continue.");
+  }, []);
+
   async function signIn(event) {
     event.preventDefault();
     if (requestPending.current) return;
@@ -75,6 +62,7 @@ export default function Home() {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
+      setInquiryDraft((draft) => draft?.ownerId === data.user.id ? draft : null);
       setUser(data.user);
       setPassword("");
     } catch (error) {
@@ -94,6 +82,7 @@ export default function Home() {
     setWorking(true);
     try {
       await api("/api/auth/logout", { method: "POST" });
+      setInquiryDraft(null);
       setUser(null);
       setEmail("");
     } catch (error) {
@@ -110,7 +99,7 @@ export default function Home() {
         <span className="brand">Inquiry Desk</span>
       </header>
 
-      <main className="content">
+      <main className={user ? "workspace" : "content"}>
         {sessionStatus === "checking" ? (
           <>
             <h1>Staff sign-in</h1>
@@ -123,14 +112,17 @@ export default function Home() {
             <button className="primary-button" type="button" onClick={retrySession}>Try again</button>
           </>
         ) : user ? (
-          <>
-            <h1 ref={workspaceHeading} tabIndex={-1}>Staff workspace</h1>
-            <p className="account-detail">Signed in as <strong>{user.name}</strong> ({user.email}).</p>
-            {error && <p className="error" role="alert">{error}</p>}
-            <button className="secondary-button" type="button" onClick={signOut} disabled={working}>
-              {working ? "Signing out…" : "Sign out"}
-            </button>
-          </>
+          <InquiryWorkspace
+            key={user.id}
+            user={user}
+            headingRef={workspaceHeading}
+            draft={inquiryDraft?.ownerId === user.id ? inquiryDraft.values : undefined}
+            onDraftChange={(values) => setInquiryDraft(values ? { ownerId: user.id, values } : null)}
+            onSessionExpired={sessionExpired}
+            onSignOut={signOut}
+            signingOut={working}
+            signOutError={error}
+          />
         ) : (
           <>
             <h1>Staff sign-in</h1>
