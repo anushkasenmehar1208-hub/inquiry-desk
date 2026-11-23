@@ -217,3 +217,130 @@ test("database errors on create and list return a generic 500", async (t) => {
     await fixture.pool.query("ALTER TABLE unavailable_inquiries RENAME TO inquiries");
   }
 });
+
+function detailRequest(id, cookie = alexCookie) {
+  return fixture.request(`/inquiries/${id}`, { headers: cookie ? { Cookie: cookie } : {} });
+}
+
+function statusRequest(id, body, { cookie = alexCookie, origin = fixture.webOrigin } = {}) {
+  return fixture.request(`/inquiries/${id}/status`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Origin: origin,
+      ...(cookie ? { Cookie: cookie } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+test("detail requires a session and returns the owner record with a version", async () => {
+  const created = await createInquiry();
+  const denied = await detailRequest(created.id, null);
+  assert.equal(denied.status, 401);
+  const response = await detailRequest(created.id);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  const { inquiry } = await response.json();
+  assert.deepEqual(inquiry, { ...created, version: 1 });
+});
+
+test("detail and update reject invalid IDs, missing records, and other staff", async () => {
+  const created = await createInquiry();
+  const missingId = "11111111-1111-4111-8111-111111111111";
+
+  for (const response of [
+    await detailRequest("not-a-uuid"),
+    await statusRequest("not-a-uuid", { status: "In Progress", version: 1 }),
+  ]) {
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { error: "Invalid inquiry ID." });
+  }
+
+  for (const id of [created.id, missingId]) {
+    const response = await detailRequest(id, samCookie);
+    assert.equal(response.status, 404);
+    assert.deepEqual(await response.json(), { error: "Inquiry not found." });
+    const update = await statusRequest(id, { status: "In Progress", version: 1 }, { cookie: samCookie });
+    assert.equal(update.status, 404);
+    assert.deepEqual(await update.json(), { error: "Inquiry not found." });
+  }
+  assert.equal((await detailRequest(missingId)).status, 404);
+  assert.equal((await statusRequest(created.id, { status: "In Progress", version: 1 }, { cookie: null })).status, 401);
+});
+
+test("updates follow New -> In Progress -> Resolved -> In Progress with incrementing versions", async () => {
+  const created = await createInquiry();
+  for (const [status, version] of [["In Progress", 1], ["Resolved", 2], ["In Progress", 3]]) {
+    const response = await statusRequest(created.id, { status, version });
+    assert.equal(response.status, 200);
+    const { inquiry } = await response.json();
+    assert.equal(inquiry.id, created.id);
+    assert.equal(inquiry.status, status);
+    assert.equal(inquiry.version, version + 1);
+    assert.equal(inquiry.createdAt, created.createdAt);
+  }
+  const { inquiry } = await (await detailRequest(created.id)).json();
+  assert.equal(inquiry.status, "In Progress");
+  assert.equal(inquiry.version, 4);
+  assert.deepEqual((await listInquiries()).map(({ status }) => status), ["In Progress"]);
+});
+
+test("updates reject illegal transitions, malformed versions and unexpected payload", async () => {
+  const created = await createInquiry();
+  const bad = [
+    { status: "Resolved", version: 1 },
+    { status: "New", version: 1 },
+    { status: "Invalid", version: 1 },
+    { status: "In Progress" },
+    { status: "In Progress", version: 0 },
+    { status: "In Progress", version: 2147483648 },
+    { status: "In Progress", version: "1" },
+    { status: "In Progress", version: 1, ownerId: fixture.sam.id },
+    {},
+  ];
+  for (const body of bad) {
+    const response = await statusRequest(created.id, body);
+    assert.equal(response.status, 400, JSON.stringify(body));
+    assert.equal(typeof (await response.json()).error, "string");
+  }
+  const { inquiry } = await (await detailRequest(created.id)).json();
+  assert.equal(inquiry.status, "New");
+  assert.equal(inquiry.version, 1);
+});
+
+test("a stale tab cannot overwrite a newer update", async () => {
+  const created = await createInquiry();
+  const firstTab = (await (await detailRequest(created.id)).json()).inquiry;
+  const secondTab = (await (await detailRequest(created.id)).json()).inquiry;
+  assert.equal(firstTab.version, secondTab.version);
+
+  const first = await statusRequest(created.id, { status: "In Progress", version: firstTab.version });
+  assert.equal(first.status, 200);
+  const stale = await statusRequest(created.id, { status: "In Progress", version: secondTab.version });
+  assert.equal(stale.status, 409);
+  assert.match((await stale.json()).error, /Refresh/);
+  const refreshed = (await (await detailRequest(created.id)).json()).inquiry;
+  assert.equal(refreshed.status, "In Progress");
+  assert.equal(refreshed.version, 2);
+});
+
+test("concurrent writes with the same version allow exactly one update", async () => {
+  const created = await createInquiry();
+  const [one, two] = await Promise.all([
+    statusRequest(created.id, { status: "In Progress", version: 1 }),
+    statusRequest(created.id, { status: "In Progress", version: 1 }),
+  ]);
+  assert.deepEqual([one.status, two.status].sort(), [200, 409]);
+  assert.equal((await (await detailRequest(created.id)).json()).inquiry.version, 2);
+});
+
+test("status PATCH rejects an untrusted Origin before changing data", async () => {
+  const created = await createInquiry();
+  const response = await statusRequest(created.id, { status: "In Progress", version: 1 }, {
+    origin: "http://localhost:9999",
+  });
+  assert.equal(response.status, 403);
+  assert.deepEqual(await response.json(), { error: "Request origin is not allowed." });
+  assert.equal((await (await detailRequest(created.id)).json()).inquiry.status, "New");
+});
