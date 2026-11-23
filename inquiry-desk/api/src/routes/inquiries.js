@@ -62,3 +62,62 @@ inquiriesRouter.get("/", requireAuth, async (req, res) => {
   );
   return res.json({ inquiries });
 });
+
+const detailColumns = `${inquiryColumns}, version`;
+const allowedMoves = {
+  "New": ["In Progress"],
+  "In Progress": ["Resolved"],
+  "Resolved": ["In Progress"],
+};
+const validId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function checkId(req, res, next) {
+  if (!validId.test(req.params.id)) {
+    return res.status(400).json({ error: "Invalid inquiry ID." });
+  }
+  return next();
+}
+
+inquiriesRouter.get("/:id", requireAuth, checkId, async (req, res) => {
+  const { rows: [inquiry] } = await pool.query(
+    `SELECT ${detailColumns} FROM inquiries WHERE id = $1 AND owner_id = $2`,
+    [req.params.id, req.staff.id],
+  );
+  if (!inquiry) return res.status(404).json({ error: "Inquiry not found." });
+  return res.json({ inquiry });
+});
+
+inquiriesRouter.patch("/:id/status", requireAuth, checkId, async (req, res) => {
+  const body = req.body;
+  const status = body?.status;
+  const version = body?.version;
+  if (!body || typeof body !== "object" || Array.isArray(body)
+    || Object.keys(body).some((key) => key !== "status" && key !== "version")
+    || !statuses.includes(status)
+    || !Number.isInteger(version) || version < 1 || version > 2147483647) {
+    return res.status(400).json({ error: "Provide a valid status and record version." });
+  }
+
+  const { rows: [current] } = await pool.query(
+    "SELECT status, version FROM inquiries WHERE id = $1 AND owner_id = $2",
+    [req.params.id, req.staff.id],
+  );
+  if (!current) return res.status(404).json({ error: "Inquiry not found." });
+  if (current.version !== version) {
+    return res.status(409).json({ error: "This inquiry changed. Refresh it before updating." });
+  }
+  if (!allowedMoves[current.status]?.includes(status)) {
+    return res.status(400).json({ error: `Cannot move from ${current.status} to ${status}.` });
+  }
+
+  const { rows: [inquiry] } = await pool.query(
+    `UPDATE inquiries SET status = $3, version = version + 1, updated_at = now()
+     WHERE id = $1 AND owner_id = $2 AND version = $4
+     RETURNING ${detailColumns}`,
+    [req.params.id, req.staff.id, status, version],
+  );
+  if (!inquiry) {
+    return res.status(409).json({ error: "This inquiry changed. Refresh it before updating." });
+  }
+  return res.json({ inquiry });
+});
