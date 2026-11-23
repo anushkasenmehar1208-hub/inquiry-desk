@@ -19,7 +19,7 @@ test("real database inquiry workflow and staff isolation", async ({ page }) => {
   await page.goto("/");
   await login("alex@example.test", alexPassword);
   await page.getByRole("button", { name: "Save inquiry", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("Enter a customer name");
+  await expect(page.locator("#inquiry-save-error")).toContainText("Enter a customer name");
 
   await page.getByLabel("Customer name", { exact: true }).fill("Test Customer");
   await page.getByLabel("Customer contact", { exact: true }).fill("test@example.test");
