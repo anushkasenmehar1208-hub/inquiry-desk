@@ -8,6 +8,7 @@
     "db:migrate": "npm run migrate -w api",
     "db:seed": "npm run seed -w api",
     "test": "npm run test -w api",
-    "test:integration": "npm run test:integration -w api"
+    "test:integration": "npm run test:integration -w api",
+    "test:frontend": "npm run test:frontend -w web"
   }
 }

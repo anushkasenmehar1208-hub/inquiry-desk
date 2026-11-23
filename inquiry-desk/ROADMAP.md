@@ -8,9 +8,12 @@ The assessment is intentionally narrow: complete one flow well. Do not add chart
 - [x] Define persistent schema
 - [x] Add seeded demo accounts and backend-enforced login/session
 - [x] Build restrained, responsive sign-in UI
-- [x] Verify end to end with locally installed dependencies and a running PostgreSQL server
+- [x] Run a clean install, native PostgreSQL setup, migration, and seed from a fresh clone
+- [x] Pass backend unit and PostgreSQL integration tests for login and sessions
+- [x] Build the frontend for production and pass the automated failed-login test
+- [x] Verify keyboard sign-in, session refresh, and sign-out at desktop and mobile widths
 
-**Acceptance:** An unauthenticated request gets a 401; Alex or Sam can sign in, refresh, and sign out.
+**Acceptance:** A signed-out request gets a 401. Alex and Sam can sign in, refresh, and sign out. The previous session gets a 401 after logout.
 
 ## Stage 2 — Capture and overview (Nov 23)
 - [ ] POST `/api/inquiries` validates all four required fields
