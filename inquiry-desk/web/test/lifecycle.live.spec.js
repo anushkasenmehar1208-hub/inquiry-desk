@@ -42,6 +42,8 @@ test("two browser tabs handle stale status, and another staff member cannot open
   await expect(secondTab.getByRole("button", { name: "Mark resolved" })).toBeVisible();
   await secondTab.getByRole("button", { name: "Mark resolved" }).click();
   await expect(secondTab.getByRole("button", { name: "Reopen inquiry" })).toBeVisible();
+  await secondTab.getByRole("button", { name: "Reopen inquiry" }).click();
+  await expect(secondTab.getByRole("button", { name: "Mark resolved" })).toBeVisible();
   await secondTab.close();
 
   await page.getByRole("button", { name: "Sign out" }).click();

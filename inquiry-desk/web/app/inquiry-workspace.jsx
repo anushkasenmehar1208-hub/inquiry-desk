@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import { InquiryDetail } from "./inquiry-detail";
 
@@ -143,7 +143,7 @@ function InquiryOverview({ filters, onFiltersChange, revision, onRetry, onSessio
 
   return (
     <section className="inquiry-overview" aria-labelledby="inquiry-overview-heading">
-      <h2 id="inquiry-overview-heading">Your inquiries</h2>
+      <h2 id="inquiry-overview-heading" tabIndex={-1}>Your inquiries</h2>
       <div className="inquiry-filters">
         <div>
           <label htmlFor="inquiry-search">Search inquiries</label>
@@ -224,11 +224,13 @@ export function InquiryWorkspace({
     url.searchParams.delete("inquiry");
     window.history.pushState(null, "", url);
     setSelectedId(null);
+    reloadInquiries();
+    document.getElementById("inquiry-overview-heading")?.focus();
   }
 
-  function reloadInquiries() {
+  const reloadInquiries = useCallback(() => {
     setRevision((current) => current + 1);
-  }
+  }, []);
 
   function inquirySaved() {
     setFilters(allInquiries);

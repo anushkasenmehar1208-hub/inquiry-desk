@@ -7,3 +7,4 @@ node_modules/
 coverage/
 inquiry-desk/web/test-results/
 *.log
+playwright-report/

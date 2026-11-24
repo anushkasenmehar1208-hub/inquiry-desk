@@ -18,7 +18,7 @@ app.use(["/api/auth", "/api/inquiries"], (req, res, next) => {
   }
   return next();
 });
-app.use(express.json({ limit: "16kb" }));
+app.use(express.json({ limit: "32kb" }));
 
 app.get("/api/health", async (_req, res, next) => {
   try {
@@ -34,6 +34,9 @@ app.use("/api/inquiries", inquiriesRouter);
 app.use("/api", (_req, res) => res.status(404).json({ error: "Endpoint not found." }));
 
 app.use((error, _req, res, _next) => {
+  if (error instanceof URIError && error.status === 400) {
+    return res.status(400).json({ error: "Invalid request path." });
+  }
   if (error?.type === "entity.parse.failed") {
     return res.status(400).json({ error: "Invalid JSON." });
   }
