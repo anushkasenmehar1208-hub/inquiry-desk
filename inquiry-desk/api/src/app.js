@@ -13,7 +13,7 @@ app.use(cors({ origin: webOrigin, credentials: true }));
 app.use(["/api/auth", "/api/inquiries"], (req, res, next) => {
   res.set("Cache-Control", "no-store");
   const origin = req.get("Origin");
-  if (req.method === "POST" && origin !== undefined && origin !== webOrigin) {
+  if (["POST", "PATCH"].includes(req.method) && origin !== undefined && origin !== webOrigin) {
     return res.status(403).json({ error: "Request origin is not allowed." });
   }
   return next();

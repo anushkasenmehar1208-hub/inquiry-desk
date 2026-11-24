@@ -2,7 +2,7 @@
 
 A small customer inquiry management system, built for the Coffee Ninja full-stack internship assessment.
 
-**Stage 2 complete.** Staff can sign in, create inquiries, and search or filter their own records.
+**Stage 3 implemented.** Staff can sign in, create and find inquiries, open details, and move owned records through the status lifecycle.
 
 ## Stack
 - Next.js / React frontend (`web/`)
@@ -61,6 +61,20 @@ Replace the placeholders with the local demo passwords. The check creates an inq
 For an end-to-end check, try an incorrect password, sign in with a demo account, refresh, sign out, and refresh again. The signed-out page should stay signed out, and `GET /api/auth/me` should return 401. Run through the form with Tab and Enter and check it at a narrow viewport.
 
 To verify the inquiry workspace, create a record as Alex, refresh, and find it using search and the New filter. Sign out and sign in as Sam to check that his list contains only his records. A successful save clears the filters so the new inquiry is visible.
+
+## Inquiry lifecycle and access
+
+Click **Open inquiry** from the list, or navigate to `/?inquiry=<uuid>` to open a direct link. Only the employee who created that inquiry may view or update it; other employees receive HTTP 404 even if they know its ID. An invalid ID returns 400, a missing session 401.
+
+Status changes use these rules: **New → In Progress → Resolved → In Progress** (reopening). Jumping directly from New to Resolved, reverting to New, or selecting the current status is invalid (400). Each successful change increments `version`. If another tab updated the record after you opened it, the API returns **409** and the UI asks you to refresh before trying again. No real-time service is required.
+
+To run the opt-in *real database* lifecycle browser test, start PostgreSQL, Express and Next.js on the documented ports, then run from the inner application directory:
+
+```sh
+RUN_LIVE_E2E=1 E2E_ALEX_PASSWORD='<Alex test password>' E2E_SAM_PASSWORD='<Sam test password>' npm run test:frontend -- lifecycle.live.spec.js
+```
+
+Use a disposable development database. This check creates a new test inquiry and leaves it there. The default Playwright tests use simulated API responses, while the integration suite checks authorization and status behavior against PostgreSQL.
 
 If npm or Node stalls reading files on a cloud-synced macOS checkout, run `npm ci` to recreate local dependencies. If a build times out reading `web/.next`, remove that generated directory and rebuild. A checkout outside the synced folder avoids repeat offloading.
 
