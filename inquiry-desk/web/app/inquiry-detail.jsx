@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
 
+const validId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const nextStatus = {
   "New": "In Progress",
   "In Progress": "Resolved",
@@ -15,17 +16,24 @@ export function InquiryDetail({ id, onClose, onUpdated, onSessionExpired }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [conflict, setConflict] = useState(false);
-  const pending = useRef(false);
+  const pending = useRef(null);
+  useEffect(() => () => pending.current?.abort(), []);
   const heading = useRef(null);
 
   useEffect(() => { heading.current?.focus(); }, [id]);
 
   useEffect(() => {
+    if (!validId.test(id)) {
+      setResult({ state: "error", status: 400 });
+      return;
+    }
     const controller = new AbortController();
     setResult({ state: "loading" });
     api(`/api/inquiries/${encodeURIComponent(id)}`, { signal: controller.signal })
       .then(({ inquiry }) => {
-        if (!controller.signal.aborted) setResult({ state: "ready", inquiry });
+        if (controller.signal.aborted) return;
+        setResult({ state: "ready", inquiry });
+        if (revision > 0) onUpdated();
       })
       .catch((failure) => {
         if (controller.signal.aborted) return;
@@ -33,7 +41,7 @@ export function InquiryDetail({ id, onClose, onUpdated, onSessionExpired }) {
         else setResult({ state: "error", status: failure.status, message: failure.message });
       });
     return () => controller.abort();
-  }, [id, revision, onSessionExpired]);
+  }, [id, revision, onSessionExpired, onUpdated]);
 
   function refresh() {
     setNotice("");
@@ -47,7 +55,8 @@ export function InquiryDetail({ id, onClose, onUpdated, onSessionExpired }) {
     const { inquiry } = result;
     const status = nextStatus[inquiry.status];
     if (!status) return;
-    pending.current = true;
+    const controller = new AbortController();
+    pending.current = controller;
     setWorking(true);
     setError("");
     setNotice("");
@@ -55,11 +64,14 @@ export function InquiryDetail({ id, onClose, onUpdated, onSessionExpired }) {
       const response = await api(`/api/inquiries/${encodeURIComponent(id)}/status`, {
         method: "PATCH",
         body: JSON.stringify({ status, version: inquiry.version }),
+        signal: controller.signal,
       });
+      if (controller.signal.aborted) return;
       setResult({ state: "ready", inquiry: response.inquiry });
       setNotice(`Status updated to ${response.inquiry.status}.`);
       onUpdated();
     } catch (failure) {
+      if (controller.signal.aborted) return;
       if (failure.status === 401) onSessionExpired();
       else if (failure.status === 409) {
         setConflict(true);
@@ -70,8 +82,8 @@ export function InquiryDetail({ id, onClose, onUpdated, onSessionExpired }) {
         setError(failure.message);
       }
     } finally {
-      pending.current = false;
-      setWorking(false);
+      pending.current = null;
+      if (!controller.signal.aborted) setWorking(false);
     }
   }
 
@@ -79,7 +91,7 @@ export function InquiryDetail({ id, onClose, onUpdated, onSessionExpired }) {
     <section className="inquiry-detail" aria-labelledby="inquiry-detail-heading">
       <div className="detail-heading">
         <h2 id="inquiry-detail-heading" ref={heading} tabIndex={-1}>Inquiry details</h2>
-        <button className="secondary-button" type="button" onClick={onClose}>Close details</button>
+        <button className="secondary-button" type="button" onClick={onClose} disabled={working}>Close details</button>
       </div>
 
       {result.state === "loading" ? (

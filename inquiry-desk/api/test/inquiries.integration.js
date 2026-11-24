@@ -118,7 +118,7 @@ test("creation rejects missing, blank, non-text, and overlong fields", async () 
 });
 
 test("oversized request bodies get a client error", async () => {
-  const response = await postInquiry({ ...inquiryInput, description: "a".repeat(20_000) });
+  const response = await postInquiry({ ...inquiryInput, description: "a".repeat(40_000) });
   assert.equal(response.status, 400);
   assert.deepEqual(await response.json(), { error: "Request body is too large." });
 });
@@ -343,4 +343,17 @@ test("status PATCH rejects an untrusted Origin before changing data", async () =
   assert.equal(response.status, 403);
   assert.deepEqual(await response.json(), { error: "Request origin is not allowed." });
   assert.equal((await (await detailRequest(created.id)).json()).inquiry.status, "New");
+});
+
+
+test("valid text with JSON escaping still fits the request limit", async () => {
+  const description = "x" + "\u0001".repeat(3998) + "x";
+  const inquiry = await createInquiry({ ...inquiryInput, description });
+  assert.equal(inquiry.description, description);
+});
+
+test("a malformed URL escape is a client error, not a server error", async () => {
+  const response = await detailRequest("%ZZ");
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: "Invalid request path." });
 });

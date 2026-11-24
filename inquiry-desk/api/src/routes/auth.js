@@ -12,7 +12,7 @@ authRouter.post("/login", async (req, res, next) => {
   try {
     const { email, password } = req.body ?? {};
     if (typeof email !== "string" || typeof password !== "string" ||
-        !email.trim() || !password || email.length > 254 || password.length > 1024) {
+        !email.trim() || email.includes("\0") || !password || email.length > 254 || password.length > 1024) {
       return res.status(400).json({ error: "Enter your email and password." });
     }
 

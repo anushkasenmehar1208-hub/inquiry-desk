@@ -64,6 +64,7 @@ test("opens an inquiry and handles a stale tab without overwriting it", async ({
 
   await page.getByRole("button", { name: "Refresh inquiry" }).click();
   await expect(page.getByRole("button", { name: "Mark resolved" })).toBeVisible();
+  await expect(page.getByRole("listitem").filter({ hasText: "Delivery question" })).toContainText("In Progress");
   await page.getByRole("button", { name: "Mark resolved" }).click();
   await expect(page.getByRole("button", { name: "Reopen inquiry" })).toBeVisible();
   expect(backend.requests).toEqual([
@@ -75,6 +76,7 @@ test("opens an inquiry and handles a stale tab without overwriting it", async ({
   await expect(page.getByRole("button", { name: "Reopen inquiry" })).toBeVisible();
   await page.getByRole("button", { name: "Close details" }).click();
   await expect(page).not.toHaveURL(/inquiry=/);
+  await expect(page.getByRole("heading", { name: "Your inquiries" })).toBeFocused();
 });
 
 test("a direct link to another employee's inquiry shows a safe denial", async ({ page, baseURL }) => {
@@ -99,4 +101,25 @@ test("an invalid direct-link ID returns an understandable error", async ({ page,
   });
   await page.goto("/?inquiry=not-a-uuid");
   await expect(page.getByRole("main").getByRole("alert")).toContainText("link is invalid");
+});
+
+
+test("dot-segment links are rejected before they can become a different API route", async ({ page, baseURL }) => {
+  await stubWorkspace(page, baseURL);
+  for (const invalid of [".", "..", "../auth/me"]) {
+    await page.goto("/?inquiry=" + encodeURIComponent(invalid));
+    await expect(page.getByRole("main").getByRole("alert")).toContainText("link is invalid");
+    await expect(page.getByRole("button", { name: "Start progress" })).toHaveCount(0);
+  }
+});
+
+test("the detail view remains usable at a narrow viewport", async ({ page, baseURL }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await stubWorkspace(page, baseURL);
+  await page.goto("/?inquiry=" + id);
+  await expect(page.getByRole("heading", { name: "Inquiry details" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start progress" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+  await page.getByRole("button", { name: "Start progress" }).click();
+  await expect(page.getByRole("button", { name: "Mark resolved" })).toBeVisible();
 });

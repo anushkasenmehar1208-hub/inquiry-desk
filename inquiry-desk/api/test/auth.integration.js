@@ -20,7 +20,7 @@ test("a request without a session gets 401", async () => {
 });
 
 test("login rejects missing and invalid credentials without issuing sessions", async () => {
-  for (const credentials of [undefined, {}, { email: alex.email }, { password }, { email: " ", password }]) {
+  for (const credentials of [undefined, {}, { email: alex.email }, { password }, { email: " ", password }, { email: "bad\u0000@example.test", password }]) {
     const response = await loginRequest(credentials);
     assert.equal(response.status, 400);
     assert.equal(response.headers.get("set-cookie"), null);
