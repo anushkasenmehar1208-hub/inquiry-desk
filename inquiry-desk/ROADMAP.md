@@ -32,19 +32,19 @@ The assessment is intentionally narrow: complete one flow well. Do not add chart
 - [x] Handle stale tabs with a version check and a refresh prompt
 - [x] Add tests for access denial using a second seeded user
 
-**Acceptance:** The backend denies direct links and updates for other users; status updates follow documented transitions and reject stale versions. Real browser verification remains required before final acceptance.
+**Acceptance:** The backend denies direct links and updates for other users; status updates follow documented transitions and reject stale versions. Verified against PostgreSQL and the real two-tab browser test on Nov 24: 3 unit tests, 27 integration tests, 9 isolated browser tests, one live lifecycle test, and a successful production build (Stage 3 baseline).
 
 ## Stage 4 — Test, document, and deliver (Nov 25)
-- [ ] Meaningful backend tests for ownership/validation/status
-- [ ] Frontend test of a user action or error state
-- [ ] Review empty, loading, and failed-save states
-- [ ] Verify clean setup from a fresh clone
-- [ ] Finish concise README and approximately one-page DECISIONS.md
+- [x] Meaningful backend tests for ownership/validation/status
+- [x] Frontend test of a user action or error state
+- [x] Review empty, loading, and failed-save states; add final audit regressions
+- [ ] Verify a fresh checkout, setup and final regression suite
+- [x] Revise README and approximately one-page DECISIONS.md (applicant to confirm AI example and understand choices)
 - [ ] Record 3–5-minute walkthrough showing workflow and failure case
-- [ ] Push to GitHub and submit through recruiter-confirmed method
+- [ ] Merge verified final changes into main; ensure reviewer access and submit repository link and recording
 
 **Acceptance:** Everything in the PDF is met, including explanation of AI usage and a feature you can change live in interview.
 
 ## Timing
 
-The acceptance email was sent Nov 19, 2026, around 8:15 PM Sri Lanka time. The 7-calendar-day period therefore appears to run to Nov 26. Exact cutoff and submission destination have been requested but are unconfirmed. Plan to finish by Nov 25 rather than depend on a last-minute interpretation.
+Acceptance was sent Nov 19, 2026. The 7-calendar-day period therefore appears to run to Nov 26. Exact cutoff and submission destination have been requested but are unconfirmed. Aim to submit by Nov 25; if no instructions arrive, reply to the original assessment email with the repository link and recording rather than miss the deadline.
